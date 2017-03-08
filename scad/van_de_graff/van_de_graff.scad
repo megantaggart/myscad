@@ -7,7 +7,7 @@ vase_wall_thickness = 5;
 bottom_holder_thickness = 4; // thickness of bottm parts
 bottom_holder_width = 40;    // width of bottom holder
 bottom_holder_height = 60;   // height of bottom holder
-bottom_holder_insert_y = 30;
+bottom_holder_insert_y = 40;
 bottom_holder_spacer_length = 6;
 glass_hole_radius = 10/2;
 pully_shaft_radius = 6/2;
@@ -65,7 +65,7 @@ module bottom_holder_basic()
             }
         }
         translate([0,-bottom_holder_width/2,0])
-            cube([vase_inner_r,bottom_holder_width,bottom_holder_width]);
+            cube([vase_inner_r,bottom_holder_width,bottom_holder_height]);
     }
     difference()
     {
