@@ -2,6 +2,7 @@ $fn=360;
 
 // IKEA glass cylinder vase
 vase_inner_r = 147/2;
+vase_outer_r = 158/2;
 vase_wall_thickness = 5;
 
 holder_thickness = 4; // thickness of toptm parts
@@ -25,6 +26,11 @@ bering_radius = 12.6/2;
 bering_width = 4;
 
 comb_holder_length = 90;
+
+sphere_clip_drop = 30;
+sphere_clip_thickness = 2;
+sphere_clip_lip_height = 5;
+sphere_thickness = 1;
 
 module belt_pully(outer_radius,length,amount_of_ridge, shaft_radius, bering_radius, bering_depth)
 {
@@ -225,6 +231,60 @@ module comb_holder()
     
 }
 
+module sphere_clip()
+{
+    difference()
+    {
+        intersection()
+        {
+            union()
+            {
+                difference()
+                {
+                    union()
+                    {
+                        cylinder(r=vase_outer_r+sphere_clip_thickness, h= sphere_clip_drop);
+                    }
+                    union()
+                    {
+                        cylinder(r=vase_outer_r, h= sphere_clip_drop);
+                    }
+                }
+                difference()
+                {
+                    union()
+                    {
+                        cylinder(r=vase_outer_r+sphere_clip_thickness*2+sphere_thickness, h= sphere_clip_lip_height);
+                    }
+                    union()
+                    {
+                        cylinder(r=vase_outer_r+sphere_clip_thickness+sphere_thickness, h= sphere_clip_lip_height);
+                    }
+                }
+                difference()
+                {
+                    union()
+                    {
+                        cylinder(r=vase_outer_r+sphere_clip_thickness*2+sphere_thickness, h= sphere_clip_thickness);
+                    }
+                    union()
+                    {
+                        cylinder(r=vase_outer_r, h= sphere_clip_thickness);
+                    }
+                }
+            }
+            translate([0,-holder_width/2,0])
+                cube([vase_outer_r*2,holder_width,sphere_clip_drop]);
+        }
+        union()
+        {
+            translate([vase_outer_r-top_holder_spacer_length-4,0,sphere_clip_drop-10])
+                rotate(a=90,v=[0,1,0])
+                    cylinder(r=pully_shaft_radius,h=top_holder_spacer_length+10);
+        }
+    }
+}
+
 // top pulley
 // belt_pully(10,pulley_width,0.05,pully_shaft_radius+1,bering_radius,bering_width);
 
@@ -236,7 +296,9 @@ module comb_holder()
 //    bottom_holder();
 
 // comb_holder
-comb_holder();
+//comb_holder();
 
 //bottom_holder_basic();
 //top_holder();
+
+sphere_clip();
