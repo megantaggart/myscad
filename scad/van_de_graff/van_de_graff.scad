@@ -217,9 +217,9 @@ module comb_holder()
             translate([comb_mnt_hole_dist-5,30,comb_holder_slot_max_y])
                 rotate(a=90,v=[1,0,0])
                     cylinder(r=comb_mnt_hole_rad,h=vase_inner_r);
-            translate([comb_mnt_hole_rad+comb_mnt_hole_dist-5,holder_thickness,12])
+            translate([comb_mnt_hole_rad+comb_mnt_hole_dist-5,holder_thickness,comb_holder_slot_min_y])
                 rotate(a=90,v=[0,0,1])
-                    cube([holder_thickness,comb_mnt_hole_rad*2,18-12]);
+                    cube([holder_thickness,comb_mnt_hole_rad*2,comb_holder_slot_max_y-comb_holder_slot_min_y]);
 
             translate([-(comb_mnt_hole_dist-5),30,comb_holder_slot_min_y])
                 rotate(a=90,v=[1,0,0])
