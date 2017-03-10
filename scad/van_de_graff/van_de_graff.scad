@@ -570,10 +570,10 @@ module rod_spacer()
 //bottom_holder_basic();
 //top_holder();
 
-//sphere_clip();
+sphere_clip();
 //sphere_clip_part_2();
 
 //base_clip();
 //motor_mount();
 
-rod_spacer();
+//rod_spacer();
