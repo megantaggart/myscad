@@ -28,14 +28,16 @@ pulley_radius = (holder_width/2)+5;
 
 comb_holder_length = 90;
 comb_holder_height = 9;
-comb_holder_slot_min_y = 11;
-comb_holder_slot_max_y = 14;
+comb_holder_slot_min_y = 12;
+comb_holder_slot_max_y = 22;
 
+sphere_radius = 280;
 sphere_clip_drop = 30;
 sphere_clip_thickness = 2;
 sphere_clip_lip_height = 5;
 sphere_thickness = 1;
-sphere_clip_width = 50;
+sphere_clip_width = 60;
+sphere_clip_protrude_dist =20;
 
 module belt_pully(outer_radius,length,amount_of_ridge, shaft_radius, bering_radius, bering_depth)
 {
@@ -196,9 +198,44 @@ module comb_holder()
         {
             translate([-comb_holder_length/2,-holder_width/2,holder_thickness])
             cube([comb_holder_length,holder_width,holder_thickness]);
-            translate([-pulley_width/2,holder_thickness*2,holder_thickness*2])
+            translate([-pulley_width/2,holder_width/2,holder_thickness*2])
             rotate(a=90,v=[1,0,0])
             cube([pulley_width,comb_holder_height,holder_thickness]);
+        }
+        union()
+        {
+            translate([comb_mnt_hole_dist/2,0,holder_thickness-1])
+                cylinder(r=comb_mnt_hole_rad,h=vase_inner_r);
+            translate([3*(comb_mnt_hole_dist/2),0,holder_thickness-1])
+                cylinder(r=comb_mnt_hole_rad,h=vase_inner_r);
+            translate([-comb_mnt_hole_dist/2,0,holder_thickness-1])
+                cylinder(r=comb_mnt_hole_rad,h=vase_inner_r);
+            translate([-3*(comb_mnt_hole_dist/2),0,holder_thickness-1])
+                cylinder(r=comb_mnt_hole_rad,h=vase_inner_r);
+
+            translate([comb_mnt_hole_dist-5,30,comb_holder_slot_min_y])
+                rotate(a=90,v=[1,0,0])
+                    cylinder(r=comb_mnt_hole_rad,h=vase_inner_r);
+
+            translate([-(comb_mnt_hole_dist-5),30,comb_holder_slot_min_y])
+                rotate(a=90,v=[1,0,0])
+                    cylinder(r=comb_mnt_hole_rad,h=vase_inner_r);
+        }
+    }
+    
+}
+
+module comb_holder_part_2()
+{
+    translate([0,30,0])
+    
+    difference()
+    {
+        union()
+        {
+            translate([-pulley_width/2,holder_width/2,holder_thickness*2])
+            rotate(a=90,v=[1,0,0])
+            cube([pulley_width,comb_holder_height*2,holder_thickness]);
         }
         union()
         {
@@ -219,7 +256,7 @@ module comb_holder()
                     cylinder(r=comb_mnt_hole_rad,h=vase_inner_r);
             translate([comb_mnt_hole_rad+comb_mnt_hole_dist-5,holder_thickness,comb_holder_slot_min_y])
                 rotate(a=90,v=[0,0,1])
-                    cube([holder_thickness,comb_mnt_hole_rad*2,comb_holder_slot_max_y-comb_holder_slot_min_y]);
+                    cube([vase_inner_r,comb_mnt_hole_rad*2,comb_holder_slot_max_y-comb_holder_slot_min_y]);
 
             translate([-(comb_mnt_hole_dist-5),30,comb_holder_slot_min_y])
                 rotate(a=90,v=[1,0,0])
@@ -229,11 +266,18 @@ module comb_holder()
                     cylinder(r=comb_mnt_hole_rad,h=vase_inner_r);
             translate([-(comb_mnt_hole_dist-5-comb_mnt_hole_rad),holder_thickness,comb_holder_slot_min_y])
                 rotate(a=90,v=[0,0,1])
-                    cube([holder_thickness,comb_mnt_hole_rad*2,comb_holder_slot_max_y-comb_holder_slot_min_y]);
+                    cube([vase_inner_r,comb_mnt_hole_rad*2,comb_holder_slot_max_y-comb_holder_slot_min_y]);
+
+
+            translate([10,30,comb_holder_slot_max_y])
+                rotate(a=90,v=[1,0,0])
+                    cylinder(r=comb_mnt_hole_rad,h=vase_inner_r);
             
+            translate([-10,30,comb_holder_slot_max_y])
+                rotate(a=90,v=[1,0,0])
+                    cylinder(r=comb_mnt_hole_rad,h=vase_inner_r);
         }
     }
-    
 }
 
 module sphere_clip()
@@ -257,13 +301,20 @@ module sphere_clip()
                 }
                 difference()
                 {
+                    // find height of sphere for vase radius
+                    ang_of_sph_intersect = asin((vase_outer_r+sphere_clip_thickness*2)/sphere_radius);
+                    dist_y = sphere_radius *cos(ang_of_sph_intersect);
+                    echo("vertical distamnceof sphere intersect = ", dist_y);
+
                     union()
                     {
-                        cylinder(r=vase_outer_r+sphere_clip_thickness*2+sphere_thickness, h= sphere_clip_lip_height);
+                        translate([0,0,dist_y+sphere_clip_thickness])
+                            sphere(r=sphere_radius+sphere_clip_thickness, h= sphere_clip_lip_height);
                     }
                     union()
                     {
-                        cylinder(r=vase_outer_r+sphere_clip_thickness+sphere_thickness, h= sphere_clip_lip_height);
+                        translate([0,0,dist_y+sphere_clip_thickness])
+                            sphere(r=sphere_radius, h= sphere_clip_lip_height);
                     }
                 }
                 difference()
@@ -278,8 +329,46 @@ module sphere_clip()
                     }
                 }
             }
-            translate([0,-sphere_clip_width/2,0])
-                cube([vase_outer_r*2,sphere_clip_width,sphere_clip_drop]);
+            intersection()
+            {
+                translate([0,-sphere_clip_width/2,0])
+                    cube([vase_outer_r+sphere_clip_protrude_dist,sphere_clip_width,sphere_clip_drop]);
+                cylinder(r=vase_outer_r+sphere_clip_protrude_dist,h=sphere_clip_drop);
+            }
+        }
+        union()
+        {
+            translate([vase_outer_r-top_holder_spacer_length-4,0,sphere_clip_drop-10])
+                rotate(a=90,v=[0,1,0])
+                    cylinder(r=pully_shaft_radius,h=top_holder_spacer_length+10);
+            translate([0,0,-5])
+                cylinder(r=vase_outer_r, h= sphere_clip_drop);
+        }
+    }
+}
+
+module sphere_clip_part_2()
+{
+    difference()
+    {
+        intersection()
+        {
+            union()
+            {
+                difference()
+                {
+                    union()
+                    {
+                        cylinder(r=vase_outer_r+sphere_clip_thickness, h= sphere_clip_drop);
+                    }
+                    union()
+                    {
+                        cylinder(r=vase_outer_r, h= sphere_clip_drop);
+                    }
+                }
+            }
+            translate([0,-sphere_clip_vertical_width/2,0])
+                cube([vase_outer_r+sphere_clip_protrude_dist,sphere_clip_vertical_width,sphere_clip_drop]);
         }
         union()
         {
@@ -290,20 +379,28 @@ module sphere_clip()
     }
 }
 
+module motor_mount()
+{
+}
+
 // top pulley
 //belt_pully(pulley_radius,pulley_width,0.05,pully_shaft_radius+1,bering_radius,bering_width);
 
 // bottom pulley
-belt_pully(pulley_radius,pulley_width,0.05,pully_shaft_radius,pully_shaft_radius,0);
+//belt_pully(pulley_radius,pulley_width,0.05,pully_shaft_radius,pully_shaft_radius,0);
 
-bottom_holder();
-rotate(a=180,v=[0,0,1])
-    bottom_holder();
+//bottom_holder();
+//rotate(a=180,v=[0,0,1])
+//    bottom_holder();
 
 // comb_holder
-comb_holder();
+//comb_holder();
+//comb_holder_part_2();
 
 //bottom_holder_basic();
 //top_holder();
 
 //sphere_clip();
+//sphere_clip_part_2();
+
+motor_mount();
