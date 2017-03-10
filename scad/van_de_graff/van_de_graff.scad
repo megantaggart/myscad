@@ -379,9 +379,114 @@ module sphere_clip_part_2()
     }
 }
 
+motor_outer_radius = 36/2;
+motor_length = 40;
+motor_full_outer_radius = 38/2;
+motor_shaft_radius = 3/2;
+motor_inner_radius = 13/2;
+motor_screw_hole_radius = 25/2;
+motor_screw_hole_r1 = 3/2;
+motor_screw_hole_r2 = 6/2;
+motor_screw_length_r1 = 1.5;
+motor_mount_wall = 3;
+motor_mount_hole = 4;
+
+
+module motor_mount_basic()
+{
+    difference()
+    {
+        union()
+        {
+            cylinder(r=motor_full_outer_radius+motor_mount_wall,h=motor_mount_wall*2);
+            translate([-(motor_full_outer_radius+motor_mount_wall),0,0])
+                cube([2*(motor_full_outer_radius+motor_mount_wall),motor_full_outer_radius+motor_mount_wall,motor_mount_wall*2]);
+            translate([-(motor_full_outer_radius+motor_mount_wall),(motor_full_outer_radius+motor_mount_wall),0])
+                rotate(a=90,v=[1,0,0])
+                    cube([2*(motor_full_outer_radius+motor_mount_wall),motor_length,motor_mount_wall]);
+    
+        }
+        union()
+        {
+            translate([0,0,motor_mount_wall])
+                cylinder(r=motor_outer_radius,h=motor_mount_wall);
+            cylinder(r=motor_inner_radius,h=motor_mount_wall);
+            translate([motor_screw_hole_radius,0,0])
+                cylinder(r=motor_screw_hole_r1,h=motor_mount_wall);
+            translate([motor_screw_hole_radius,0,0])
+                cylinder(r=motor_screw_hole_r2,h=motor_mount_wall-motor_screw_length_r1);
+            translate([-motor_screw_hole_radius,0,0])
+                cylinder(r=motor_screw_hole_r1,h=motor_mount_wall);
+            translate([-motor_screw_hole_radius,0,0])
+                cylinder(r=motor_screw_hole_r2,h=motor_mount_wall-motor_screw_length_r1);
+        }
+    }
+}
+
+module motor_mount_support()
+{
+    intersection()
+    {
+        difference()
+        {
+            union()
+            {
+                cylinder(r=motor_full_outer_radius+motor_mount_wall,h=motor_mount_wall*2);
+                translate([-(motor_full_outer_radius+motor_mount_wall),0,0])
+                    cube([2*(motor_full_outer_radius+motor_mount_wall),motor_full_outer_radius+motor_mount_wall,motor_mount_wall]);
+            }
+            union()
+            {
+                cylinder(r=motor_outer_radius,h=motor_mount_wall*2);
+            }
+        }
+        translate([-(motor_full_outer_radius+motor_mount_wall),0,0])
+            cube([2*(motor_full_outer_radius+motor_mount_wall),motor_full_outer_radius+motor_mount_wall,motor_mount_wall]);
+    }
+    
+}
+module motor_mount_tab()
+{
+    rotate(a=90,v=[0,1,0])
+    rotate(a=90,v=[1,0,0])
+        difference()
+        {
+            union()
+            {
+                cylinder(r=motor_mount_hole+motor_mount_wall,h=motor_mount_wall);
+                translate([-(motor_mount_hole+motor_mount_wall),0,0])
+                    cube([2*(motor_mount_hole+motor_mount_wall),motor_full_outer_radius+motor_mount_wall,motor_mount_wall]);
+            }
+            union()
+            {
+                cylinder(r=motor_mount_hole,h=motor_mount_wall);
+            }
+        }
+}
+
 module motor_mount()
 {
+    motor_mount_basic();
+    translate([0,0,motor_length/2])
+    {
+        motor_mount_support();
+        translate([-(motor_mount_hole+motor_mount_wall*2+motor_full_outer_radius),motor_full_outer_radius+motor_mount_wall,-(motor_mount_hole)])
+            motor_mount_tab();
+        translate([(motor_mount_hole+motor_mount_wall*2+motor_full_outer_radius),motor_full_outer_radius+motor_mount_wall,-(motor_mount_hole)])
+           rotate(a=180,v=[0,1,0])
+            motor_mount_tab();
+    }
+    translate([0,0,motor_length])
+    {        
+        motor_mount_support();
+        translate([-(motor_mount_hole+motor_mount_wall*2+motor_full_outer_radius),motor_full_outer_radius+motor_mount_wall,-(motor_mount_hole)])
+            motor_mount_tab();
+        translate([(motor_mount_hole+motor_mount_wall*2+motor_full_outer_radius),motor_full_outer_radius+motor_mount_wall,-(motor_mount_hole)])
+           rotate(a=180,v=[0,1,0])
+            motor_mount_tab();
+    }
 }
+
 
 // top pulley
 //belt_pully(pulley_radius,pulley_width,0.05,pully_shaft_radius+1,bering_radius,bering_width);
