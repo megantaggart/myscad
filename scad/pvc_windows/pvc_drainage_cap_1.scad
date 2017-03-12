@@ -39,8 +39,8 @@ module basic_block()
     }
 }
 
-clip_width=5;
-clip_length=5;
+clip_width=4;
+clip_length=4;
 clip_depth=9.5;
 clip_clipper=0.20;
 clip_clipper_depth=2.5;
@@ -91,6 +91,9 @@ module window_clip()
                 clip();
             translate([cap_length-cap_offset,0,cap_offset-clip_length])
                 clip();
+            cube([cap_offset,cap_width,cap_offset]);
+            translate([cap_length-cap_offset,0,0])
+                cube([cap_offset,cap_width,cap_offset]);
         }
         minkowski()
         {
