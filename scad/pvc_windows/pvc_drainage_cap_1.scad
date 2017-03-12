@@ -41,7 +41,7 @@ module basic_block()
 
 clip_width=4;
 clip_length=4;
-clip_depth=9.5;
+clip_depth=12;
 clip_clipper=0.20;
 clip_clipper_depth=2.5;
 slot_depth=5;
