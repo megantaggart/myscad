@@ -33,4 +33,32 @@ module backbox()
 }
 
 
-backbox();
+bk_height=30;
+wall=1.2;
+
+module back_cover()
+{
+    translate([10,0,-bk_height])
+        cube([100,110,1.2]);
+    
+    translate([10,wall,-bk_height])
+        rotate(a=90,v=[1,0,0])
+            cube([100,bk_height,1.2]);
+
+    translate([10,110,-bk_height])
+        rotate(a=90,v=[1,0,0])
+            cube([100,bk_height,1.2]);
+
+    translate([10+wall,0,0])
+        rotate(a=-90,v=[0,1,0])
+            rotate(a=90,v=[0,0,1])
+                cube([110,bk_height,1.2]);
+
+    translate([110,0,0])
+        rotate(a=-90,v=[0,1,0])
+            rotate(a=90,v=[0,0,1])
+                cube([110,bk_height,1.2]);
+}
+
+//backbox();
+back_cover();
