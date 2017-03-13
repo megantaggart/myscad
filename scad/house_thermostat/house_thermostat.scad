@@ -100,6 +100,6 @@ module out_ring()
 
 
 
-base();
-//mod_ring();
+//base();
+mod_ring();
 //out_ring();
