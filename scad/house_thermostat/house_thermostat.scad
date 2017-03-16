@@ -112,7 +112,7 @@ module out_ring()
         {
             translate([0,0,-wall])
                 cylinder(r=out_ring_inner_r,h=inner_height+wall);
-            cylinder(r=disp_radius,h=inner_height);
+            cylinder(r=disp_radius,h=inner_height+wall*2);
         }
     }
 }
@@ -194,8 +194,8 @@ module test_section()
 
 
 //test_section();
-base();
+//base();
 //rotate(a=3,v=[0,0,1])
 //mod_ring();
-//out_ring();
+out_ring();
 
