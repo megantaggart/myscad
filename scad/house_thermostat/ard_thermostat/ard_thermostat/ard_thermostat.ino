@@ -8,6 +8,52 @@
 // Data wire is plugged into port 2 on the Arduino
 #define ONE_WIRE_BUS 2
 
+#define DISP_OFF   0
+#define DISP_SP    1
+#define DISP_TEMP  2
+#define DISP_TIME  3
+#define DISP_MAX   4
+
+
+bool await_diff=false;
+int looper=0;
+int display_state = DISP_OFF;
+int room_temp = 0;
+
+
+int set_point_fixed[] = {15,18};
+int set_point = 15;
+
+int rtc_dow =0;
+int TME_H=0;
+int TME_M=0;
+
+int temp_idx = 0;
+
+bool heater_on=false;
+
+int get_current_temp(void)
+{
+  int ret = 0;  
+  int mn=TME_H*100+TME_M;  
+  if ((rtc_dow==0) || (rtc_dow==6))
+  {
+    // weekend
+    if (mn > 0530)      { ret = 1; }
+    else if (mn > 0715) { ret = 0; }
+    else if (mn > 1630) { ret = 1; }
+    else if (mn > 2200) { ret = 0; }
+  }
+  else
+  {
+    //weekday
+    if (mn > 0530)      { ret = 1; }
+    else if (mn > 0715) { ret = 0; }
+    else if (mn > 1630) { ret = 1; }
+    else if (mn > 2200) { ret = 0; }
+  }
+}
+
 // Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
 OneWire oneWire(ONE_WIRE_BUS);
 
@@ -36,6 +82,8 @@ int segF = 11;
 int segG = 6;
 int dir1 = A0;
 int dir2 = A1;
+int heater_pin = A3;
+
 void setup() 
 {                
   Serial.begin(19200); //choose the serial speed here
@@ -57,6 +105,7 @@ void setup()
   pinMode(digit4, OUTPUT);
   
   pinMode(13, OUTPUT);
+  pinMode(heater_pin,OUTPUT);
  
 
   // Start up the library
@@ -116,25 +165,6 @@ void setup()
     Serial.println("Ready");
 }
 
-
-void SetLEDCol(int led, rgb_color color)
-{
-    colors[led] = color;
-    // Write to the LED strip.
-    ledStrip.write(colors, LED_COUNT);  
-}
-
-bool await_diff=false;
-int n=0;
-int looper=0;
-
-#define DISP_OFF   0
-#define DISP_TEMP  1
-#define DISP_TIME  2
-#define DISP_MAX   3
-
-int display_state = DISP_OFF;
-
 bool read_ring_changed(void)
 {
   int d1=digitalRead(dir1);
@@ -145,11 +175,17 @@ bool read_ring_changed(void)
     {
         if (d1>0)
         {
-          n++;
+          if (set_point < 30)
+          {
+            set_point++;
+          }
         }
         else
         {
-          n--;
+          i 00000sf (set_point > 0)
+          {
+            set_point--;
+          }
         }
         await_diff=false;
         return true;
@@ -162,54 +198,152 @@ bool read_ring_changed(void)
   return false;
 }
 
-RtcDateTime now = Rtc.GetDateTime();
-int TME_H=0;
-int TME_M=0;
 
 void do_display(void)
 {
+  int tme=0;
   switch(display_state)
   {
+    case DISP_SP:
+        displayNumbers(13,14,set_point/10,set_point%10);
+        set_sp_colour();
+        break;
     case DISP_TEMP:
-        displayNumber(n,false);
+        displayNumbers(room_temp/10,room_temp%10,11,12);
+        set_temp_colour();
         break;
     case DISP_TIME:
-        displayNumber((TME_H*100)+TME_M,false);
+        tme = TME_H;
+        tme*=100;
+        tme+=TME_M;
+        displayNumber(tme);
+        set_day_of_week_colour();
+        break;
     case DISP_OFF:
+        set_temp_colour();
     default:
         displayOff();
         break;
   }
 }
 
+void do_heater_control()
+{
+  if (heater_on==true)
+  {
+    Serial.print(millis());
+    Serial.println("Heater On");
+    digitalWrite(heater_pin,HIGH);
+  }
+  else
+  {
+    Serial.print(millis());
+    Serial.println("Heater Off");
+    digitalWrite(heater_pin,LOW);
+  }
+}
+
+void set_day_of_week_colour(void)
+{
+    if (( rtc_dow ==0 ) || (rtc_dow == 6))
+    {
+      colors[0]=rgb_color{0,20,0};
+      colors[1]=rgb_color{0,0,0};
+      colors[2]=rgb_color{0,20,0};
+    }
+    else
+    {
+      colors[0]=rgb_color{0,0,0};
+      colors[1]=rgb_color{6,0,14};
+      colors[2]=rgb_color{0,0,0};
+    }
+   ledStrip.write(colors, LED_COUNT);  
+}
+
+void set_temp_colour(void)
+{
+  if (temp_idx==0)
+  {
+      colors[1]=rgb_color{0,0,10};
+  }
+  else
+  {
+      colors[1]=rgb_color{10,0,0};
+  }
+   if (room_temp < set_point)
+   {
+      colors[0]=rgb_color{20,0,0};
+      colors[2]=rgb_color{20,0,0};
+   }
+   else if (room_temp > set_point)
+   {
+      colors[0]=rgb_color{0,0,20};
+      colors[2]=rgb_color{0,0,20};
+   }
+   else
+   {
+      colors[0]=rgb_color{10,10,0};
+      colors[2]=rgb_color{10,10,0};
+   }
+   ledStrip.write(colors, LED_COUNT);  
+}
+
+void set_sp_colour(void)
+{
+  set_temp_colour();
+}
+
+void do_temperature(void)
+{
+   //Serial.print("T:");
+   room_temp=sensors.getTempCByIndex(0);
+   //Serial.println(room_temp);
+   sensors.requestTemperatures();
+
+    int gt= get_current_temp();
+    if (gt != temp_idx)
+    {
+      temp_idx=gt;
+      set_point=set_point_fixed[temp_idx];
+    }
+   if (room_temp < set_point)
+   {
+      heater_on=true;
+   }
+   else if (room_temp > set_point)
+   {
+      heater_on=false;
+   }
+   else
+   {
+    // leav alone for hysterisis
+   }
+   set_temp_colour();
+}
+
 int disp_loop=0;
 void loop() 
 {
- 
-  //do_display();
-  
-//  SetLEDCol(0,rgb_color{20,0,0});
-//  SetLEDCol(1,rgb_color{0,20,0});
-//  SetLEDCol(2,rgb_color{0,0,20});
+  do_display();
 
   if (read_ring_changed()== true)
   {
-    Serial.print("Num : ");
-    Serial.println(n);    
+    //Serial.print("Num : ");
+    //Serial.println(set_point);    
+    display_state = DISP_SP;
+    looper=101;
   }
   
-  /*
+  
   if (looper==0)
   {
-     // After we got the temperatures, we can print them here.
-     // We use the function ByIndex, and as an example get the temperature from the first sensor only.
-     Serial.print("T:");
-     Serial.println(sensors.getTempCByIndex(0));
-     sensors.requestTemperatures();
      RtcDateTime now = Rtc.GetDateTime();
+     rtc_dow = now.DayOfWeek();
+     do_temperature();
      TME_H = now.Hour();
      TME_M = now.Minute();
      display_state = DISP_OFF;
+   
   }
   else if (looper==100)
   {
@@ -217,18 +351,17 @@ void loop()
     disp_loop++;
     if (disp_loop >= DISP_MAX)
     {
+      do_heater_control();
       disp_loop=0;
     }
   }
   
-  
   looper++;
-  if (looper==1000)
+  if (looper==4000)
   {
     looper=0;
   }
-    */
-  delay(10);  
+//  delay(10);  
 }
 
 //Given a number, we display 10:22
@@ -265,34 +398,19 @@ void displayOff(void)
   digitalWrite(digit3, LOW);
   digitalWrite(digit4, LOW);}
 
-void displayNumber(int toDisplay, bool leadingzero) 
+
+void displayNumber(int toDisplay) 
 {
 
 #define DISPLAY_WAIT        5
-#define DISPLAY_BRIGHTNESS  50
+#define DISPLAY_BRIGHTNESS  200
 
 #define DIGIT_ON  LOW
 #define DIGIT_OFF  HIGH
 
   long beginTime = millis();
 
-  int max_digit=4;
-  if (leadingzero==false)
-  {
-    if (toDisplay<10)
-    {
-      max_digit=1;
-    }
-    else if (toDisplay<100)
-    {
-      max_digit=2;
-    }
-    else if (toDisplay<1000)
-    {
-      max_digit=3;
-    }
-  }
-  for(int digit = max_digit ; digit > 0 ; digit--) {
+  for(int digit = 4 ; digit > 0 ; digit--) {
 
     //Turn on a digit for a short amount of time
     switch(digit) {
@@ -313,6 +431,58 @@ void displayNumber(int toDisplay, bool leadingzero)
     //Turn on the right segments for this digit
     lightNumber(toDisplay % 10);
     toDisplay /= 10;
+
+    delayMicroseconds(DISPLAY_BRIGHTNESS); 
+    //Display digit for fraction of a second (1us to 5000us, 500 is pretty good)
+
+    //Turn off all segments
+    lightNumber(10); 
+
+    //Turn off all digits
+    digitalWrite(digit1, DIGIT_OFF);
+    digitalWrite(digit2, DIGIT_OFF);
+    digitalWrite(digit3, DIGIT_OFF);
+    digitalWrite(digit4, DIGIT_OFF);
+  }
+
+  while( (millis() - beginTime) < DISPLAY_WAIT) ; 
+  //Wait for 20ms to pass before we paint the display again
+}
+
+
+void displayNumbers(int A,int B, int C, int D) 
+{
+
+#define DISPLAY_WAIT        5
+#define DISPLAY_BRIGHTNESS  200
+
+#define DIGIT_ON  LOW
+#define DIGIT_OFF  HIGH
+
+  long beginTime = millis();
+
+  for(int digit = 4 ; digit > 0 ; digit--) {
+
+    //Turn on a digit for a short amount of time
+    switch(digit) {
+    case 1:
+      digitalWrite(digit1, DIGIT_ON);
+      lightNumber(A);
+      break;
+    case 2:
+      digitalWrite(digit2, DIGIT_ON);
+      lightNumber(B);
+      break;
+    case 3:
+      digitalWrite(digit3, DIGIT_ON);
+      lightNumber(C);
+      break;
+    case 4:
+      digitalWrite(digit4, DIGIT_ON);
+      lightNumber(D);
+      break;
+    }
+
 
     delayMicroseconds(DISPLAY_BRIGHTNESS); 
     //Display digit for fraction of a second (1us to 5000us, 500 is pretty good)
@@ -449,5 +619,44 @@ void lightNumber(int numberToDisplay) {
     digitalWrite(segF, SEGMENT_OFF);
     digitalWrite(segG, SEGMENT_OFF);
     break;
+  case 11: // degree
+    digitalWrite(segA, SEGMENT_ON);
+    digitalWrite(segB, SEGMENT_ON);
+    digitalWrite(segC, SEGMENT_OFF);
+    digitalWrite(segD, SEGMENT_OFF);
+    digitalWrite(segE, SEGMENT_OFF);
+    digitalWrite(segF, SEGMENT_ON);
+    digitalWrite(segG, SEGMENT_ON);
+    break;
+  case 12: // C
+    digitalWrite(segA, SEGMENT_ON);
+    digitalWrite(segB, SEGMENT_OFF);
+    digitalWrite(segC, SEGMENT_OFF);
+    digitalWrite(segD, SEGMENT_ON);
+    digitalWrite(segE, SEGMENT_ON);
+    digitalWrite(segF, SEGMENT_ON);
+    digitalWrite(segG, SEGMENT_OFF);
+    break;
+  case 13: // S
+    digitalWrite(segA, SEGMENT_ON);
+    digitalWrite(segB, SEGMENT_OFF);
+    digitalWrite(segC, SEGMENT_ON);
+    digitalWrite(segD, SEGMENT_ON);
+    digitalWrite(segE, SEGMENT_OFF);
+    digitalWrite(segF, SEGMENT_ON);
+    digitalWrite(segG, SEGMENT_ON);
+    break;
+  case 14: // P
+    digitalWrite(segA, SEGMENT_ON);
+    digitalWrite(segB, SEGMENT_ON);
+    digitalWrite(segC, SEGMENT_OFF);
+    digitalWrite(segD, SEGMENT_OFF);
+    digitalWrite(segE, SEGMENT_ON);
+    digitalWrite(segF, SEGMENT_ON);
+    digitalWrite(segG, SEGMENT_ON);
+    break;
   }
 }
+
+
+
