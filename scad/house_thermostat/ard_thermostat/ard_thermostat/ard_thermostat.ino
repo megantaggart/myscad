@@ -1,54 +1,39 @@
-/*
- 6-13-2011
- Spark Fun Electronics 2011
- Nathan Seidle
- 
- This code is public domain but you buy me a beer if you use this and we meet 
- someday (Beerware license).
- 
- 4 digit 7 segment display:
- http://www.sparkfun.com/products/9483
- Datasheet: 
- http://www.sparkfun.com/datasheets/Components/LED/7-Segment/YSD-439AR6B-35.pdf
+// Include the libraries we need
+#include <Wire.h> 
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include <RtcDS3231.h>
+#include <PololuLedStrip.h>
 
- This is an example of how to drive a 7 segment LED display from an ATmega
- without the use of current limiting resistors. This technique is very common 
- but requires some knowledge of electronics - you do run the risk of dumping 
- too much current through the segments and burning out parts of the display. 
- If you use the stock code you should be ok, but be careful editing the 
- brightness values.
- 
- This code should work with all colors (red, blue, yellow, green) but the 
- brightness will vary from one color to the next because the forward voltage 
- drop of each color is different. This code was written and calibrated for the 
- red color.
+// Data wire is plugged into port 2 on the Arduino
+#define ONE_WIRE_BUS 2
 
- This code will work with most Arduinos but you may want to re-route some of 
- the pins.
+// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire(ONE_WIRE_BUS);
 
- 7 segments
- 4 digits
- 1 colon
- =
- 12 pins required for full control 
- 
- */
+// Pass our oneWire reference to Dallas Temperature. 
+DallasTemperature sensors(&oneWire);
 
-int digit1 = 4; //PWM Display pin 1
-int digit2 = 8; //PWM Display pin 2
-int digit3 = 2; //PWM Display pin 6
-int digit4 = 7; //PWM Display pin 8
+RtcDS3231<TwoWire> Rtc(Wire);
 
-//Pin mapping from Arduino to the ATmega DIP28 if you need it
-//http://www.arduino.cc/en/Hacking/PinMapping
-int segA = 12; //Display pin 14
-int segB = 10; //Display pin 16
-int segC = 5; //Display pin 13
-int segD = 9; //Display pin 3
-int segE = 13; //Display pin 5
-int segF = 11; //Display pin 11
-int segG = 6; //Display pin 15
+// Create an ledStrip object and specify the pin it will use.
+PololuLedStrip<3> ledStrip;
 
+// Create a buffer for holding the colors (3 bytes per color).
+#define LED_COUNT 3
+rgb_color colors[LED_COUNT];
+
+int digit1 = 4;
+int digit2 = 8;
+int digit3 = A2;
+int digit4 = 7;
+int segA = 12;
+int segB = 10;
+int segC = 5;
+int segD = 9;
+int segE = 13;
+int segF = 11;
+int segG = 6;
 int dir1 = A0;
 int dir2 = A1;
 void setup() 
@@ -57,8 +42,6 @@ void setup()
   Serial.setTimeout(500);
   pinMode(dir1, INPUT);
   pinMode(dir2, INPUT);
-  
-  
    
   pinMode(segA, OUTPUT);
   pinMode(segB, OUTPUT);
@@ -75,20 +58,87 @@ void setup()
   
   pinMode(13, OUTPUT);
  
+
+  // Start up the library
+  sensors.begin();
+  sensors.setWaitForConversion(false);  // makes it async
+
+  Rtc.Begin();
+
+    // if you are using ESP-01 then uncomment the line below to reset the pins to
+    // the available pins for SDA, SCL
+    // Wire.begin(0, 2); // due to limited pins, use pin 0 and 2 for SDA, SCL
+
+    RtcDateTime compiled = RtcDateTime(__DATE__, __TIME__);
+    Serial.println();
+
+    if (!Rtc.IsDateTimeValid()) 
+    {
+        // Common Cuases:
+        //    1) first time you ran and the device wasn't running yet
+        //    2) the battery on the device is low or even missing
+
+        Serial.println("RTC lost confidence in the DateTime!");
+
+        // following line sets the RTC to the date & time this sketch was compiled
+        // it will also reset the valid flag internally unless the Rtc device is
+        // having an issue
+
+        Rtc.SetDateTime(compiled);
+    }
+
+    if (!Rtc.GetIsRunning())
+    {
+        Serial.println("RTC was not actively running, starting now");
+        Rtc.SetIsRunning(true);
+    }
+
+    RtcDateTime now = Rtc.GetDateTime();
+    if (now < compiled) 
+    {
+        Serial.println("RTC is older than compile time!  (Updating DateTime)");
+        Rtc.SetDateTime(compiled);
+    }
+    else if (now > compiled) 
+    {
+        Serial.println("RTC is newer than compile time. (this is expected)");
+    }
+    else if (now == compiled) 
+    {
+        Serial.println("RTC is the same as compile time! (not expected but all is fine)");
+    }
+
+    // never assume the Rtc was last configured by you, so
+    // just clear them to your needed state
+    Rtc.Enable32kHzPin(false);
+    Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeNone); 
+
+    Serial.println("Ready");
+}
+
+
+void SetLEDCol(int led, rgb_color color)
+{
+    colors[led] = color;
+    // Write to the LED strip.
+    ledStrip.write(colors, LED_COUNT);  
 }
 
 bool await_diff=false;
 int n=0;
-void loop() {
-  
-  //TestCombi(digit1,segG);
-  displayNumber(n);
+int looper=0;
+
+#define DISP_OFF   0
+#define DISP_TEMP  1
+#define DISP_TIME  2
+#define DISP_MAX   3
+
+int display_state = DISP_OFF;
+
+bool read_ring_changed(void)
+{
   int d1=digitalRead(dir1);
   int d2=digitalRead(dir2);
-  //Serial.print("dir1:");
-  //Serial.print(d1);
-  //Serial.print("dir2:");
-  //Serial.println(d2);
   if (await_diff)
   {
     if (d1!=d2)
@@ -101,15 +151,83 @@ void loop() {
         {
           n--;
         }
-        Serial.print("Num : ");
-        Serial.println(n);
         await_diff=false;
+        return true;
     }
   }
   if ((d1==1) && (d2==1))
   {
     await_diff=true;
+  }  
+  return false;
+}
+
+RtcDateTime now = Rtc.GetDateTime();
+int TME_H=0;
+int TME_M=0;
+
+void do_display(void)
+{
+  switch(display_state)
+  {
+    case DISP_TEMP:
+        displayNumber(n,false);
+        break;
+    case DISP_TIME:
+        displayNumber((TME_H*100)+TME_M,false);
+    case DISP_OFF:
+    default:
+        displayOff();
+        break;
   }
+}
+
+int disp_loop=0;
+void loop() 
+{
+ 
+  //do_display();
+  
+//  SetLEDCol(0,rgb_color{20,0,0});
+//  SetLEDCol(1,rgb_color{0,20,0});
+//  SetLEDCol(2,rgb_color{0,0,20});
+
+  if (read_ring_changed()== true)
+  {
+    Serial.print("Num : ");
+    Serial.println(n);    
+  }
+  
+  /*
+  if (looper==0)
+  {
+     // After we got the temperatures, we can print them here.
+     // We use the function ByIndex, and as an example get the temperature from the first sensor only.
+     Serial.print("T:");
+     Serial.println(sensors.getTempCByIndex(0));
+     sensors.requestTemperatures();
+     RtcDateTime now = Rtc.GetDateTime();
+     TME_H = now.Hour();
+     TME_M = now.Minute();
+     display_state = DISP_OFF;
+  }
+  else if (looper==100)
+  {
+    display_state = disp_loop;
+    disp_loop++;
+    if (disp_loop >= DISP_MAX)
+    {
+      disp_loop=0;
+    }
+  }
+  
+  
+  looper++;
+  if (looper==1000)
+  {
+    looper=0;
+  }
+    */
   delay(10);  
 }
 
@@ -133,44 +251,48 @@ void loop() {
 //1 dim but readable in dark (0.28mA)
 
 
-void TestCombi(int dig, int seg) 
+void displayOff(void) 
+{
+  digitalWrite(segA, LOW);
+  digitalWrite(segB, LOW);
+  digitalWrite(segC, LOW);
+  digitalWrite(segD, LOW);
+  digitalWrite(segE, LOW);
+  digitalWrite(segF, LOW);
+  digitalWrite(segG, LOW);
+  digitalWrite(digit1, LOW);
+  digitalWrite(digit2, LOW);
+  digitalWrite(digit3, LOW);
+  digitalWrite(digit4, LOW);}
+
+void displayNumber(int toDisplay, bool leadingzero) 
 {
 
-#define DISPLAY_BRIGHTNESS  200
+#define DISPLAY_WAIT        5
+#define DISPLAY_BRIGHTNESS  50
 
 #define DIGIT_ON  LOW
 #define DIGIT_OFF  HIGH
 
   long beginTime = millis();
 
-  digitalWrite(dig, LOW);
-
-  //Turn on the right segments for this digit
-  digitalWrite(seg, HIGH);
-
-  delayMicroseconds(DISPLAY_BRIGHTNESS); 
-  //Display digit for fraction of a second (1us to 5000us, 500 is pretty good)
-
-  digitalWrite(seg, LOW);
-
-  //Turn off all digits
-  digitalWrite(dig, HIGH);
-
-  while( (millis() - beginTime) < 10) ; 
-  //Wait for 20ms to pass before we paint the display again
-}
-
-void displayNumber(int toDisplay) 
-{
-
-#define DISPLAY_BRIGHTNESS  200
-
-#define DIGIT_ON  LOW
-#define DIGIT_OFF  HIGH
-
-  long beginTime = millis();
-
-  for(int digit = 4 ; digit > 0 ; digit--) {
+  int max_digit=4;
+  if (leadingzero==false)
+  {
+    if (toDisplay<10)
+    {
+      max_digit=1;
+    }
+    else if (toDisplay<100)
+    {
+      max_digit=2;
+    }
+    else if (toDisplay<1000)
+    {
+      max_digit=3;
+    }
+  }
+  for(int digit = max_digit ; digit > 0 ; digit--) {
 
     //Turn on a digit for a short amount of time
     switch(digit) {
@@ -205,7 +327,7 @@ void displayNumber(int toDisplay)
     digitalWrite(digit4, DIGIT_OFF);
   }
 
-  while( (millis() - beginTime) < 10) ; 
+  while( (millis() - beginTime) < DISPLAY_WAIT) ; 
   //Wait for 20ms to pass before we paint the display again
 }
 
