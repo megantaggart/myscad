@@ -118,11 +118,11 @@ void loop()
     {
       if (inc >0)
       {
-          inc = (analogRead(A0)/300)+0.05;
+          inc = (analogRead(A0)/500)+0.05;
       }
       else
       {
-          inc = (analogRead(A0)/300)+0.05;
+          inc = (analogRead(A0)/500)+0.05;
           inc =-inc;
       }
     }
